@@ -1,9 +1,10 @@
 <?php
-namespace Codemonauts\Cloudwatchlogs;
+namespace codemonauts\cloudwatchlogs;
 
 use yii\log\Target as BaseTarget;
 use yii\base\InvalidConfigException;
 use Aws\CloudWatchLogs\CloudWatchLogsClient;
+use yii\log\Logger;
 
 class Target extends BaseTarget
 {
@@ -77,6 +78,8 @@ class Target extends BaseTarget
 
         $this->client = new CloudWatchLogsClient($params);
 
+        $this->ensureLogGroupExists();
+
         $this->refreshSequenceToken();
     }
 
@@ -85,33 +88,57 @@ class Target extends BaseTarget
      */
     public function export()
     {
-        $logEvents = [];
-
-        foreach ($this->messages as $message) {
-            $logEvents[] = [
-                'message' => $message,
-                'timestamp' => time()
-            ];
-        }
-
         $data = [
-            'logEvents' => $logEvents,
+            'logEvents' => array_map([$this, 'formatMessage'], $this->messages),
             'logGroupName' => $this->logGroup,
             'logStreamName' => $this->logStream,
         ];
 
-        if (!empty($this->sequenzeToken)) {
+        if (!empty($this->sequenceToken)) {
             $data['sequenceToken'] = $this->sequenceToken;
         }
 
         $response = $this->client->putLogEvents($data);
+
+        print_r($response);die;
+
         $this->sequenceToken = $response->get('nextSequenceToken');
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function formatMessage($message)
+    {
+        list($text, $level, $category, $timestamp) = $message;
+        $level = Logger::getLevelName($level);
+        if (!is_string($text)) {
+            // exceptions may not be serializable if in the call stack somewhere is a Closure
+            if ($text instanceof \Throwable || $text instanceof \Exception) {
+                $text = (string) $text;
+            } else {
+                $text = VarDumper::export($text);
+            }
+        }
+        $traces = [];
+        if (isset($message[4])) {
+            foreach ($message[4] as $trace) {
+                $traces[] = "in {$trace['file']}:{$trace['line']}";
+            }
+        }
+
+        $prefix = $this->getMessagePrefix($message);
+
+        return [
+            'timestamp' => $timestamp*1000,
+            'message' => "{$prefix}[$level][$category] $text" . (empty($traces) ? '' : "\n    " . implode("\n    ", $traces))
+        ];
     }
 
     /**
      * Get the sequence token for the selected log stream.
      *
-     * returns void
+     * @return void
      */
     private function refreshSequenceToken()
     {
@@ -120,10 +147,48 @@ class Target extends BaseTarget
             'logStreamNamePrefix' => $this->logStream,
         ])->get('logStreams');
 
+        $exists = false;
+
         foreach($existingStreams as $stream) {
-            if ($stream['logStreamName'] === $this->logStream && isset($stream['uploadSequenceToken'])) {
-                $this->sequenceToken = $stream['uploadSequenceToken'];
+            if ($stream['logStreamName'] === $this->logStream) {
+                $exists = true;
+                if (isset($stream['uploadSequenceToken'])) {
+                    $this->sequenceToken = $stream['uploadSequenceToken'];
+                }
             }
+        }
+
+        if (!$exists) {
+            $this->client->createLogStream([
+                'logGroupName' => $this->logGroup,
+                'logStreamName' => $this->logStream,
+            ]);
+        }
+    }
+
+    /**
+     * Ensures that the selected log group exists or create it
+     *
+     * @return void
+     */
+    private function ensureLogGroupExists()
+    {
+        $existingGroups = $this->client->describeLogGroups([
+            'logGroupNamePrefix' => $this->logGroup,
+        ])->get('logGroups');
+
+        $exists = false;
+
+        foreach ($existingGroups as $group) {
+            if ($group['logGroupName'] === $this->logGroup) {
+                $exists = true;
+            }
+        }
+
+        if (!$exists) {
+            $this->client->createLogGroup([
+                'logGroupName' => $this->logGroup,
+            ]);
         }
     }
 }
