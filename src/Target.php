@@ -100,8 +100,6 @@ class Target extends BaseTarget
 
         $response = $this->client->putLogEvents($data);
 
-        print_r($response);die;
-
         $this->sequenceToken = $response->get('nextSequenceToken');
     }
 
