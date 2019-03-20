@@ -56,11 +56,15 @@ class Target extends BaseTarget
         }
 
         if (empty($this->logStream)) {
-            $instanceId = @file_get_contents("http://instance-data/latest/meta-data/instance-id");
-            if ($instanceId !== false) {
-                $this->logStream = $instanceId;
+            if (empty($this->key)) {
+                $instanceId = @file_get_contents("http://instance-data/latest/meta-data/instance-id");
+                if ($instanceId !== false) {
+                    $this->logStream = $instanceId;
+                } else {
+                    throw new InvalidConfigException("Cannot identify instance ID and no log stream name is set.");
+                }
             } else {
-                throw new InvalidConfigException("Cannot identify instance ID and no log stream name is set.");
+                throw new InvalidConfigException("No log stream name is set.");
             }
         }
 
