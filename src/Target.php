@@ -81,10 +81,6 @@ class Target extends BaseTarget
         }
 
         $this->client = new CloudWatchLogsClient($params);
-
-        $this->ensureLogGroupExists();
-
-        $this->refreshSequenceToken();
     }
 
     /**
@@ -92,6 +88,10 @@ class Target extends BaseTarget
      */
     public function export()
     {
+        $this->ensureLogGroupExists();
+
+        $this->refreshSequenceToken();
+
         $data = [
             'logEvents' => array_map([$this, 'formatMessage'], $this->messages),
             'logGroupName' => $this->logGroup,
