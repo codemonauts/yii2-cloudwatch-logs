@@ -2,7 +2,7 @@
   "name": "codemonauts/yii2-cloudwatch-logs",
   "type": "library",
   "description": "A Yii 2 log target for AWS Cloudwatch Logs",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "keywords": ["yii2", "log", "aws", "cloudwatch"],
   "license": "MIT",
   "authors": [
@@ -18,7 +18,7 @@
   },
   "require": {
     "php": ">=5.6.0",
-    "yiisoft/yii2": "~2.0.15.1",
+    "yiisoft/yii2": "~2.0.15",
     "aws/aws-sdk-php": "^3.18"
   },
   "autoload": {
