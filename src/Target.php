@@ -5,6 +5,7 @@ use yii\log\Target as BaseTarget;
 use yii\base\InvalidConfigException;
 use Aws\CloudWatchLogs\CloudWatchLogsClient;
 use yii\log\Logger;
+use yii\helpers\VarDumper;
 
 class Target extends BaseTarget
 {
@@ -46,7 +47,8 @@ class Target extends BaseTarget
     /**
      * @inheritdoc
      */
-    public function init() {
+    public function init()
+    {
         if (empty($this->logGroup)) {
             throw new InvalidConfigException("A log group must be set.");
         }
@@ -101,6 +103,12 @@ class Target extends BaseTarget
         if (!empty($this->sequenceToken)) {
             $data['sequenceToken'] = $this->sequenceToken;
         }
+        $logEvents = $data['logEvents'];
+
+        usort($logEvents, function (array $a, array $b) {
+            return $a['timestamp'] > $b['timestamp'] ? 1 : -1;
+        });
+        $data['logEvents'] = $logEvents;
 
         $response = $this->client->putLogEvents($data);
 
@@ -151,7 +159,7 @@ class Target extends BaseTarget
 
         $exists = false;
 
-        foreach($existingStreams as $stream) {
+        foreach ($existingStreams as $stream) {
             if ($stream['logStreamName'] === $this->logStream) {
                 $exists = true;
                 if (isset($stream['uploadSequenceToken'])) {
