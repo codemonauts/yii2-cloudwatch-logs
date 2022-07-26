@@ -57,7 +57,7 @@ class Target extends BaseTarget
 
         if (empty($this->logStream)) {
             if (empty($this->key)) {
-                $instanceId = @file_get_contents("http://instance-data/latest/meta-data/instance-id");
+                $instanceId = @file_get_contents("http://169.254.169.254/latest/meta-data/instance-id");
                 if ($instanceId !== false) {
                     $this->logStream = $instanceId;
                 } else {
