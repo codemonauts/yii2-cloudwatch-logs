@@ -92,8 +92,22 @@ class Target extends BaseTarget
 
         $this->refreshSequenceToken();
 
+        $messages = array_map([$this, 'formatMessage'], $this->messages);
+
+        // sorting the log events before sending them to AWS
+        // or it will cause 400 bad reqeust error for logs not being in chronological order.
+        usort($messages, static function (array $a, array $b) {
+            if ($a['timestamp'] < $b['timestamp']) {
+                return -1;
+            } elseif ($a['timestamp'] > $b['timestamp']) {
+                return 1;
+            }
+
+            return 0;
+        });
+
         $data = [
-            'logEvents' => array_map([$this, 'formatMessage'], $this->messages),
+            'logEvents' => $messages,
             'logGroupName' => $this->logGroup,
             'logStreamName' => $this->logStream,
         ];
